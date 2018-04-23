@@ -9,6 +9,8 @@ import be.kuleuven.cs.som.annotate.*;
  *    
  * @invar	Each type must have a properly spelled extension.
  * 			| isValidExtension(getExtension())
+ * 
+ * @author Jonas, Frederik
  *    
  */
 @Value
