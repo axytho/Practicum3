@@ -802,4 +802,13 @@ public class Directory extends DiskItem {
 		return canHaveAsParentDirectory(getParentDirectory()) &&
 				(isRoot() || getParentDirectory().hasAsItem(this));
 	}
-}
+	
+	/**
+	 * Returns an iterator for this directory
+	 * 
+	 */
+	
+	public DirectoryIterator getIterator() {
+			return null;
+		}
+ }
