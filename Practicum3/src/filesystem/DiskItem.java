@@ -216,7 +216,7 @@ public abstract class DiskItem extends Item {
 	 * 
 	 * @param   target
 	 *          The target directory.
-	 * @effect  If this disk item is not a root, this disk item is
+	 * @effect  If this disk item could not be a root, this disk item is
 	 *          removed from its parent directory.
 	 *          | if (!isRoot())
 	 *          | then getParentDirectory().removeAsItem(this) 

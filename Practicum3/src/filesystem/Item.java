@@ -590,7 +590,7 @@ public abstract class Item {
 	 * its parent directory.
 	 * 
 	 * @return  true if this item can have its registered parent directory 
-	 * 			as its parent directory and it is either a root, or 
+	 * 			as its parent directory and it could be a root, or 
 	 * 			its registered parent directory has this item as a registered item.
 	 *          | result == canHaveAsParentDirectory(getParentDirectory()) &&
 	 *			|            (couldBeRoot() || getParentDirectory().hasAsItem(this))
@@ -617,13 +617,13 @@ public abstract class Item {
 	 *          | then result == (directory == null)
 	 * @return	If this item is not terminated,
 	 * 				if the given directory is not effective,
-	 * 				then true if this item is a root item or the parent of this item is writable, 
+	 * 				then true if this item could be a root item or the parent of this item is writable, 
 	 * 					 false otherwise
 	 * 				else if the given directory is terminated, then false
 	 * 					 if this item is the same as the given directory, then false
 	 * 					 if this item is a direct or indirect parent of the given directory, then false
 	 * 					 else true if the given directory is writable and it can have this item as an item
-	 * 							and this item is a root or the parent directory of this item is writable,
+	 * 							and this item could be root or the parent directory of this item is writable,
 	 * 						  false otherwise.
 	 *			| if (!this.isTerminated())
 	 *			| then if (directory == null)
