@@ -39,7 +39,7 @@ public class Link extends Item{
 	 * 			| item.isTerminated()
 	 */
 	
-	public Link(String name, DiskItem item)	throws IllegalArgumentException {
+	public Link(String name, Item item)	throws IllegalArgumentException {
 		super(name);
 		if (item.isTerminated())	{
 			throw new IllegalArgumentException("Item is terminated!");

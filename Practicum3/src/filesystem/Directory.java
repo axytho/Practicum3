@@ -106,13 +106,47 @@ public class Directory extends DiskItem {
 	 * 			|            && (isRoot() || getParentDirectory().isWritable())
 	 * @note	We have added a condition to the open specs of the superclass. Now the specification
 	 * 			is in closed form.
+	 * @note	canTerminated calls writableParent(), and because this is a directory, we check this.writableParent
+	 * 			rather than super.writableParent
 	 */
 	@Override
 	public boolean canBeTerminated() {
 		return getNbItems() == 0 && super.canBeTerminated();			
 	}
-
 	
+	/**
+	 * Check whether this disk item's parent directory allows for changes
+	 * 
+	 * @return	True if and only if the parent directory is writable or is root
+	 * 			| getParentDirectory().isWritable() || isRoot() 
+	 */
+	public boolean writableParent() {
+		return getParentDirectory().isWritable() || isRoot();
+	}
+	
+	/**
+	 * Terminate this directory
+	 * 
+	 * @effect	This directory is terminated
+	 * 			| super.terminate()
+	 * 
+	 * @effect	This directory is terminated and made root if it is not yet root
+	 * 			| if !(isRoot() && isTerminated())
+	 * 			| 	then makeRoot()
+	 * 		
+	 */
+
+	public void terminate() {
+		if(!isRoot()){
+			try{
+				makeRoot();
+			}catch(ItemNotWritableException e){
+				//should not happen since this item and its parent are writable
+				assert false;
+			}
+		super.terminate();
+		}
+	}
 	
 	
 	/**********************************************************
@@ -300,7 +334,7 @@ public class Directory extends DiskItem {
 			}
 			return count == 1;
 		}else{
-			return (!this.containsItemWithName(item.getName()) && (item.isRoot() || item.getParentDirectory().isWritable())); 
+			return (!this.containsItemWithName(item.getName()) && (item.couldBeRoot() || item.getParentDirectory().isWritable())); 
 		}
 	}
 
@@ -581,6 +615,40 @@ public class Directory extends DiskItem {
 	}
 	
 	/**
+	 * Check whether this item could be a root item if that is defined
+	 * 
+	 * @return	false, because only directories can be root 
+	 * 
+	 * @note	open specification, is overwritten by directory
+	 * 
+	 */
+	public boolean couldBeRoot()	{
+		return false;
+	}
+	
+	/**
+	 * Return the root item to which this item directly or indirectly
+	 * belongs. In case this item is a root item, the item itself is 
+	 * the result.
+	 * 
+	 * @return If this item is a root item, this item is returned;
+	 *         Otherwise the root to which the parent item of this 
+	 *         item belongs is returned.
+	 *         | if (isRoot())
+	 *         | then result == this
+	 *         | else result == getParentDirectory().getRoot()
+	 */
+	public Item getRoot() {
+		if (isRoot()) {
+			return this;
+		} else {
+			return getParentDirectory().getRoot();
+		}
+	}
+	
+	
+	
+	/**
 	 * Check whether the name of this disk item can be changed into the
 	 * given name.
 	 * 
@@ -590,14 +658,25 @@ public class Directory extends DiskItem {
 	 *          and either this directory is a root directory or the parent directory does not 
 	 *          already contain an other directory with the given name;
 	 *          false otherwise.
-	 *          | result == !isTerminated() && isValidName(name) && 
-	 *          |			!getName().equals(name) && ( isRoot() || !getParentDirectory().containsItemWithName(name) )
+	 *          | result == !isTerminated() && isWritable() && isValidName(name) && 
+	 *          |			!getName().equals(name) && (isValidParentForName(name))
 	 */
 	@Override
 	public boolean canAcceptAsNewName(String name) {
-		return !isTerminated() && isValidName(name) && !getName().equals(name) &&
-				(isRoot() || !getParentDirectory().containsItemWithName(name));
+		return super.canAcceptAsNewName(name);
 	}
+	
+	/**
+	 * Check whether the parent directory is valid for this name change
+	 * 
+	 * @return	True if the parent directory does not contain an item with the same name
+	 * 			| !getParentDirectory().containsItemWithName(name) && isRoot()
+	 */
+	@Override
+	public boolean isValidParentForName(String name) {
+		return !getParentDirectory().containsItemWithName(name) || isRoot();
+	}
+	
 	/**
 	 * Set the name of this disk item to the given name.
 	 *
@@ -618,22 +697,16 @@ public class Directory extends DiskItem {
 	 * 			directory is restored given the new name
 	 * 			| if (!isRoot()) then 
 	 * 			|	getParentDirectory().restoreOrderAfterNameChangeAt(getParentDirectory().getIndexOf(this))
+	 * @throws  ItemNotWritableException(this)
+	 *          This disk item is not writable.
+	 *          | !isWritable()
 	 * @throws 	IllegalStateException
 	 * 			This disk item is already terminated
 	 * 			| isTerminated()
-	 * 
 	 */
 	@Override
 	public void changeName(String name) throws ItemNotWritableException, IllegalStateException {
-		if (isTerminated()) throw new IllegalStateException("Disk item terminated!");
-		if (canAcceptAsNewName(name)) {
-			setName(name);
-			setModificationTime();
-			if(!isRoot()){
-				int currentIndexInParent = getParentDirectory().getIndexOf(this);
-				getParentDirectory().restoreOrderAfterNameChangeAt(currentIndexInParent);
-			}
-		}
+		super.changeName(name);
 	}
 	/**
 	 * Move this disk item to a given directory.
@@ -667,36 +740,8 @@ public class Directory extends DiskItem {
 	 * 			| isTerminated()
 	 */
 	@Override
-	public void move(Directory target) 
-			throws IllegalArgumentException, ItemNotWritableException, IllegalStateException {
-		if ( isTerminated()) 
-			throw new IllegalStateException("Item is terminated!");
-		if ( (target == null) || (getParentDirectory() == target) || !target.canHaveAsItem(this))
-			throw new IllegalArgumentException();
-		if (!target.isWritable())
-			throw new ItemNotWritableException(target);
-
-		if (!isRoot()) {
-			try{
-				getParentDirectory().removeAsItem(this);
-				//our disk item becomes raw now
-			}catch(IllegalArgumentException e){
-				//this cannot happen because of the class invariants
-				assert false;
-			}
-		}
-		setParentDirectory(target); 
-		try{
-			target.addAsItem(this); //this is a raw item because it's not yet registered in the new parent
-									//so the formal argument of assAsItem should be annotated @Raw
-		}catch(IllegalArgumentException e){
-			//this should not happen, because it can have this item
-			assert false;
-		}catch(ItemNotWritableException e){
-			//this should not happen, because we checked it
-			assert false;
-		}
-		setModificationTime();
+	public void move(Directory target) {
+		super.move(target);
 	}
 	
 	/**
@@ -722,7 +767,7 @@ public class Directory extends DiskItem {
 	 * 			This disk item is terminated
 	 * 			| isTerminated()
 	 */ 
-	@Override
+
 	public void makeRoot() throws ItemNotWritableException {
 		if ( isTerminated()) 
 			throw new IllegalStateException("Item is terminated!");
