@@ -14,7 +14,7 @@ package filesystem;
  * @author 	Frederik van Eecke en Jonas Bertels   
  *
  */
-package filesystem;
+
 
 import java.util.Date;
 
@@ -28,10 +28,9 @@ import filesystem.exception.*;
  * 
  */
 public abstract class Item {
-
+	
 	/**
-	 * TODO: delete!
-	 * Initialize a new root item with given name.
+	 * Initialize a new root item with given name and writability.
 	 * 
 	 * @param  	name
 	 *         	The name of the new item.
@@ -39,23 +38,22 @@ public abstract class Item {
 	 * @effect  The name of the item is set to the given name.
 	 * 			If the given name is not valid, a default name is set.
 	 *          | setName(name) 
-	 *          
 	 * @post 	The item is a root item
 	 * 			| new.isRoot()
-	 * 
-	 * @note    This happens because the constructor of creation time initializes with Date() and the parent directory is set to null by default
-	 * 
-	 * @post	The new creation time of this item is initialized to some time during
+	 * @post    The new creation time of this item is initialized to some time during
 	 *          constructor execution.
 	 *          | (new.getCreationTime().getTime() >= System.currentTimeMillis()) &&
 	 *          | (new.getCreationTime().getTime() <= (new System).currentTimeMillis())
 	 * @post    The new item has no time of last modification.
 	 *          | new.getModificationTime() == null
+	 *          
+	 * @note	This should only be called by instances of directory, all others should have a valid parent directory.
 	 */
 	@Model
 	protected Item(String name) {
 		setName(name);
 	}
+
 
 	/**
 	 * Initialize a new Item with given parent directory, name and 
@@ -107,9 +105,12 @@ public abstract class Item {
 			throw new ItemNotWritableException(parent);
 		
 		setName(name);
-		setParentDirectory(parent);
+		initializeParent(parent);
 		try {
 			parent.addAsItem(this);
+		} catch (ItemNotWritableException e) {
+			//cannot occur
+			assert false;
 		} catch (IllegalArgumentException e) {
 			//cannot occur
 			assert false;
@@ -139,23 +140,16 @@ public abstract class Item {
 	 * Check whether this item can be terminated.
 	 * 
 	 * @return	True if the item is not yet terminated and the parent directory is writable
-	 * 			| !isTerminated() && this.writableParent()
+	 * 			| if (isTerminated()  || (!couldBeRoot() && !getParentDirectory().isWritable()))
+	 * 			| then result == false
 	 * @note	This specification must be left open s.t. the subclasses can change it
 	 * 			Open-closed rule/principle page 500 course 
 	 */
 	public boolean canBeTerminated(){
-		return !isTerminated() && writableParent();
+		return !isTerminated() && (couldBeRoot() || getParentDirectory().isWritable());
 	}
 	
-	/**
-	 * Check whether this item's parent directory allows for changes
-	 * 
-	 * @return	True if and only if the parent directory is writable
-	 * 			| getParentDirectory().isWritable()
-	 */
-	public boolean writableParent() {
-		return getParentDirectory().isWritable();
-	}
+
 
 	/**
 	 * Terminate this item.
@@ -208,8 +202,12 @@ public abstract class Item {
 	 * 			hyphens and underscores; false otherwise.
 	 * 			| result ==
 	 * 			|	(name != null) && name.matches("[a-zA-Z_0-9.-]+")
+	 * 
+	 * @note	No longer a static method because whether a name is valid depends on the instance
+	 * 			of this.
 	 */
-	public static boolean isValidName(String name) {
+	@Raw
+	public boolean isValidName(String name) {
 		return (name != null && name.matches("[a-zA-Z_0-9.-]+"));
 	}
 
@@ -514,6 +512,7 @@ public abstract class Item {
 	/**
 	 * Variable referencing the directory (if any) to which this 
 	 * item belongs.
+	 * 
 	 */
 	private Directory parentDirectory = null;
 
@@ -675,7 +674,7 @@ public abstract class Item {
 	/**
 	 * Set the parent directory of this item to the given directory.
 	 *
-	 * @param  directory
+	 * @param  parentDirectory
 	 *         The new parent directory for this item.
 	 * @post   The parent directory of this item is set to the given 
 	 *         directory.
@@ -698,6 +697,35 @@ public abstract class Item {
 		}
 		this.parentDirectory = parentDirectory;
 	}
+	
+	/**
+	 * Initialize the item's parent directory
+	 * 
+	 * @param	directory
+	 * 			the parent directory this item will be initialized with
+	 * 
+	 * @post   	The parent directory of this item is set to the given 
+	 *        	directory.
+	 *         	| new.getParentDirectory() == directory
+	 *         
+	 * @throws	IllegalArgumentException
+	 * 			The parent directory has been terminate
+	 * 			| directory.isTerminated()
+	 *         
+	 * @note	From the initialization process we already now that the parent directory is not null,
+	 * 			that the parent directory does not contain an item with the name of this item and that the parent is writable
+	 * 			so there's no point in checking all that by calling setParentDirectory() (which calls canHaveAsParentDirectory(), which calls
+	 * 			canHaveAsItem(), most of which check things we already now are true (a new file will never be terminated)
+	 * 
+	 * 			This method should only be called from the constructor! (maybe it should exist there but I'm not sure)
+	 */
+	@Raw
+	private void initializeParent(Directory directory) throws IllegalArgumentException {
+		assert(directory != null); // error should have been thrown during initialisation
+		if (directory.isTerminated())
+			throw new IllegalArgumentException("Parent Directory is terminated!");
+		this.parentDirectory = directory;
+	}
 
 	/**
 	 * Return the parent directory (if any) to which this item
@@ -708,6 +736,27 @@ public abstract class Item {
 		return parentDirectory;
 	}
 
+	/**
+	 * Return the root item to which this item directly or indirectly
+	 * belongs. In case this item is a root item, the item itself is 
+	 * the result.
+	 * 
+	 * @return If this item is a root item, this item is returned;
+	 *         Otherwise the root to which the parent item of this 
+	 *         item belongs is returned.
+	 *         | if (isRoot())
+	 *         | then result == this
+	 *         | else result == getParentDirectory().getRoot()
+	 */
+	public Item getRoot() {
+		Directory parentDirectory = getParentDirectory();
+		if (parentDirectory.isRoot()) {
+			return parentDirectory;
+		} else {
+			return parentDirectory.getRoot();
+		}
+	}
+	
 
 	
 	/**
@@ -720,6 +769,44 @@ public abstract class Item {
 	 */
 	public boolean couldBeRoot()	{
 		return false;
+	}
+	
+	/**
+	 * Get the total disk usage for each DiskItem
+	 */
+	
+	abstract int getTotalDiskUsage();
+	
+	
+	/**
+	 * Returns a full path of the item (overrriden by file)
+	 * 
+	 * @return	a string build by the names of all super directories and subdirectories, seperated by slash
+	 * 			 result == "/rootDir/subDir/subsubDir/.../this"
+	 * 			| If getParentDirectory() == null: result == "/".concat(this.getName())
+	 * 			| else:
+	 * 			| result == getParentDirectory().getAbsolutePath().concat("/".concat(this.getName()))
+	 */
+	public String getAbsolutePath() {
+		if (getParentDirectory() == null) {
+			return "/".concat(this.getName());
+		}
+		return  getParentDirectory().getAbsolutePath().concat("/".concat(this.getName()));
+	}
+	
+	/**
+	 * Delete this item from the filesystem
+	 * 
+	 * @post	this item is terminated
+	 * 			| this.isTerminated()
+	 * 
+	 * @effect	this item is removed from the parent directory
+	 * 			| getParentDirectory().removeAsItem(this)
+.	 */
+	
+	public void deleteRecursive() {
+		this.terminate();
+		getParentDirectory().removeAsItem(this);
 	}
 }
 

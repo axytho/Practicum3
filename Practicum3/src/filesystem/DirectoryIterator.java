@@ -38,7 +38,7 @@ public interface DirectoryIterator {
 	 * 			This directory-iterator has no current item.
 	 * 			| getNbRemainingItems() == 0
 	 */
-	DiskItem getCurrentItem() throws IndexOutOfBoundsException;
+	Item getCurrentItem() throws IndexOutOfBoundsException;
 	
 	/**
 	 * Advance the current item of this directory-iterator to the

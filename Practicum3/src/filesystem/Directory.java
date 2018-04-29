@@ -35,7 +35,7 @@ public class Directory extends DiskItem {
 	 * 
 	 */
 	public Directory(String name, boolean writable) {
-		super(name,writable);
+		super(name, writable);
 	}
 
 	/**
@@ -103,7 +103,7 @@ public class Directory extends DiskItem {
 	 * @return	True if the directory is not yet terminated, is writable, contains 0 items
 	 * 			and it is either a root or its parent directory is writable
 	 * 			| result == getNbItems() == 0 && !isTerminated() && isWritable() 
-	 * 			|            && (isRoot() || getParentDirectory().isWritable())
+	 * 			|            && (couldBeRoot() || getParentDirectory().isWritable())
 	 * @note	We have added a condition to the open specs of the superclass. Now the specification
 	 * 			is in closed form.
 	 * @note	canTerminated calls writableParent(), and because this is a directory, we check this.writableParent
@@ -114,15 +114,6 @@ public class Directory extends DiskItem {
 		return getNbItems() == 0 && super.canBeTerminated();			
 	}
 	
-	/**
-	 * Check whether this disk item's parent directory allows for changes
-	 * 
-	 * @return	True if and only if the parent directory is writable or is root
-	 * 			| getParentDirectory().isWritable() || isRoot() 
-	 */
-	public boolean writableParent() {
-		return getParentDirectory().isWritable() || isRoot();
-	}
 	
 	/**
 	 * Terminate this directory
@@ -144,8 +135,8 @@ public class Directory extends DiskItem {
 				//should not happen since this item and its parent are writable
 				assert false;
 			}
-		super.terminate();
 		}
+		super.terminate();
 	}
 	
 	
@@ -617,35 +608,18 @@ public class Directory extends DiskItem {
 	/**
 	 * Check whether this item could be a root item if that is defined
 	 * 
-	 * @return	false, because only directories can be root 
+	 * @return	true if the directory is root
+	 * 			| isRoot()
 	 * 
 	 * @note	open specification, is overwritten by directory
 	 * 
 	 */
+	@Override @Raw
 	public boolean couldBeRoot()	{
-		return false;
+		return isRoot();
 	}
 	
-	/**
-	 * Return the root item to which this item directly or indirectly
-	 * belongs. In case this item is a root item, the item itself is 
-	 * the result.
-	 * 
-	 * @return If this item is a root item, this item is returned;
-	 *         Otherwise the root to which the parent item of this 
-	 *         item belongs is returned.
-	 *         | if (isRoot())
-	 *         | then result == this
-	 *         | else result == getParentDirectory().getRoot()
-	 */
-	public Item getRoot() {
-		if (isRoot()) {
-			return this;
-		} else {
-			return getParentDirectory().getRoot();
-		}
-	}
-	
+
 	
 	
 	/**
@@ -659,7 +633,7 @@ public class Directory extends DiskItem {
 	 *          already contain an other directory with the given name;
 	 *          false otherwise.
 	 *          | result == !isTerminated() && isWritable() && isValidName(name) && 
-	 *          |			!getName().equals(name) && (isValidParentForName(name))
+	 *          |			!getName().equals(name) && (!getParentDirectory().containsItemWithName(name) || isRoot())
 	 */
 	@Override
 	public boolean canAcceptAsNewName(String name) {
@@ -783,6 +757,25 @@ public class Directory extends DiskItem {
 		}
 	}
 	
+	/**
+	 * Return the root item to which this item directly or indirectly
+	 * belongs. In case this item is a root item, the item itself is 
+	 * the result.
+	 * 
+	 * @return If this item is a root item, this item is returned;
+	 *         Otherwise the root to which the parent item of this 
+	 *         item belongs is returned.
+	 *         | if (isRoot())
+	 *         | then result == this
+	 *         | else result == getParentDirectory().getRoot()
+	 */
+	public Item getRoot() {
+		if (isRoot()) {
+			return this;
+		}
+		return super.getRoot();
+	}
+	
 	/** 
 	 * Check whether this disk item has a proper parent directory as
 	 * its parent directory.
@@ -791,7 +784,7 @@ public class Directory extends DiskItem {
 	 * 			as its parent directory and it is either a root, or 
 	 * 			its registered parent directory has this item as a registered item.
 	 *          | result == canHaveAsParentDirectory(getParentDirectory()) &&
-	 *			|            (isRoot() || getParentDirectory().hasAsItem(this))
+	 *			|            (couldBeRoot() || getParentDirectory().hasAsItem(this))
 	 *	@note	This checker is split up in two parts, the consistency of the 
 	 *			bidirectional relationship is added to the functionality of 
 	 *			the internal state checker (canHaveAsParentDirectory())
@@ -799,8 +792,27 @@ public class Directory extends DiskItem {
 	@Override
 	@Raw 
 	public boolean hasProperParentDirectory() {
-		return canHaveAsParentDirectory(getParentDirectory()) &&
-				(isRoot() || getParentDirectory().hasAsItem(this));
+		return super.hasProperParentDirectory();
+	}
+	
+
+	
+	/**
+	 * Check whether the given name is a legal name for a Directory.
+	 * 
+	 * @param  	name
+	 *			The name to be checked
+	 * @return	True if the given string is effective, not
+	 * 			empty and consisting only of letters, digits, dots,
+	 * 			hyphens and underscores; false otherwise.
+	 * 			| result ==
+	 * 			|	(name != null) && name.matches("[a-zA-Z_0-9-]+")
+	 * 
+	 * @note	Directories cannot contain '.'s in their name.
+	 */
+	@Override @Raw
+	public boolean isValidName(String name) {
+		return (name != null && name.matches("[a-zA-Z_0-9-]+"));
 	}
 	
 	/**
@@ -809,6 +821,86 @@ public class Directory extends DiskItem {
 	 */
 	
 	public DirectoryIterator getIterator() {
+		if (getNbItems() == 0) {
 			return null;
+		} else {
+			return new  DirectoryIterator() {
+				
+				private int current = 1;
+
+				@Override
+				public int getNbRemainingItems() {
+					return getNbItems() - current;
+				}
+
+				@Override
+				public Item getCurrentItem() throws IndexOutOfBoundsException {
+					return getItemAt(current);
+				}
+
+				@Override
+				public void advance() {
+					current += 1;
+					
+				}
+
+				@Override
+				public void reset() {
+					current = 1;
+					
+				}
+				
+			};
 		}
- }
+	}
+	
+	/**
+	 * Returns total disk usage by all DiskItems in this directory
+	 * 
+	 * @return	sum of the size of all the DiskItems in this directory
+	 * 			| result ==
+	 * 			|      sum(for each diskItem in getIterator():
+	 * 			| 				diskItem.getTotalDiskUsage())
+	 * 			
+	 */
+	@Override
+	public int getTotalDiskUsage() {
+		int sum = 0;
+		DirectoryIterator iter = getIterator();
+		if (iter == null) {
+			return 0;
+		}
+		while (iter.getNbRemainingItems()>0) {
+			sum += iter.getCurrentItem().getTotalDiskUsage();
+			iter.advance();
+		}
+		sum += iter.getCurrentItem().getTotalDiskUsage();
+		return sum;
+	}
+	
+	/**
+	 * Delete the entire directory recursively
+	 * 
+	 * @post	All items in the directory have been deleted
+	 * 			|for each item in this:
+	 * 			|	this.isTerminated()
+	 */
+	@Override
+	public void deleteRecursive() {
+		DirectoryIterator iter = getIterator();
+		if (iter == null) {
+			this.terminate();
+		} else {
+			// important: the iterator updates while we delete, so just delete the first element until nothing remains
+			// we don't really need the iterator for this
+			while (iter.getNbRemainingItems() > 0) {
+				iter.getCurrentItem().deleteRecursive();
+			}
+			// only the element we've got is remaining, so delete that, and then delete this
+			iter.getCurrentItem().deleteRecursive();
+			this.terminate();
+		}
+	}
+	
+
+}

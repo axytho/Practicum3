@@ -19,49 +19,25 @@ public class File extends DiskItem{
      * Constructors
      **********************************************************/
 
-    /**
-     * Initialize a new file with given name, size and writability.
-     *
-     * @param  	name
-     *         	The name of the new file.
-     * @param  	size
-     *         	The size of the new file.
-     * @param  	writable
-     *         	The writability of the new file.
-     * @param  	type
-     *         	The type of the new file.        
-     * 
-     * @pre		type is effective
-     * 			|type != null
-     * @effect 	The new file is a disk item with the given
-     *         	name and writability.
-     *         	| super(name,writable)
-     * @effect 	The new file has the given size
-     *          | setSize(size)
-     * @post   	The type of this new file is set to the given type.
-     *         	|new.getType() == type        
-     */
-    public File(String name, Type type, int size, boolean writable) {
-    	super(name,writable);
-        setSize(size);
-        this.type=type;
-    }
+
 
     /**
-     * Initialize a new writable, empty file with given name.
+     * Initialize a new writable, empty file with given name in the given directory
      *
      * @param  name
      *         The name of the new file.
      * @param  type
-     *         The type of the new file.        
+     *         The type of the new file.
+     * @param  dir
+     * 		   The parent directory
      * 
      * @effect This new file is initialized with the given name
      *         and the given type, the new file is empty
-     *         and writable.
+     *         and writable and sits in dir
      *         | this(name,type,0,true)
      */
-    public File(String name, Type type) {
-        this(name,type,0,true);
+    public File(String name, Type type, Directory dir) {
+        this(dir, name,type,0,true);
     }
    
     /**
@@ -167,6 +143,7 @@ public class File extends DiskItem{
      * @return True if and only if the given type is effective.
      *         | result == (type != null)
      */
+    @Raw
     public static boolean isValidType(Type type){
     	  return type != null;
     }
@@ -296,5 +273,28 @@ public class File extends DiskItem{
         	throw new ItemNotWritableException(this);
         }
     }
+    
+    /**
+     * Get the total disk usage of this file
+     * 
+     * @return	The size of the file
+     * 			| getSize()
+     */
+    
+    public int getTotalDiskUsage() {
+    	return getSize();
+    }
+    
+	/**
+	 * Returns a full path of the item
+	 * 
+	 * @return	a string build by the names of all super directories and subdirectories, seperated by slash and ending with the type extension
+	 * 			| getParentDirectory().getAbsolutePath().concat("/".concat(this.getName())).concat(".").concat(getType().getExtension())
+	 * 			
+	 */
+    @Override
+	public String getAbsolutePath() {
+		return  getParentDirectory().getAbsolutePath().concat("/".concat(this.getName())).concat(".").concat(getType().getExtension());
+	}
     
 }

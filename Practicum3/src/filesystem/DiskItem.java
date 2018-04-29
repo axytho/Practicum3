@@ -15,23 +15,24 @@ import filesystem.exception.*;
 public abstract class DiskItem extends Item {
 
 	/**
-	 * Initialize a new root disk item with given name and writability.
+	 * Initialize a new disk item with a given name and writability
 	 * 
 	 * @param  	name
-	 *         	The name of the new disk item.
+	 *         	The name of the new disk item.  
 	 * @param  	writable
 	 *         	The writability of the new disk item.
-	 * 
-	 * @effect  A new item is initialized with a given name
-	 * 			| super(name)
+	 *         
 	 * @effect	The writability is set to the given flag
 	 * 			| setWritable(writable)
+	 * @effect 	A new Item with a given parent directory and name is initialized
+	 * 			| super(name)       
 	 */
-	@Model
 	protected DiskItem(String name, boolean writable) {
 		super(name);
 		setWritable(writable);
 	}
+	
+	
 
 	/**
 	 * Initialize a new disk item with given parent directory, name and 
@@ -49,33 +50,12 @@ public abstract class DiskItem extends Item {
 	 * 			| setWritable(writable)
 	 * @effect 	A new Item with a given parent directory and name is initialized
 	 * 			| super(parent, name)
-	 * @post    The new disk item is not terminated.
-	 *          | !new.isTerminated()
-
-	 * @throws 	ItemNotWritableException(parent)
-	 *         	The given parent directory is effective, but not writable.
-	 *         	| parent != null && !parent.isWritable()
-
 	 */
 	@Model
 	protected DiskItem(Directory parent, String name, boolean writable) 
 			throws IllegalArgumentException, ItemNotWritableException {
 		super(parent, name);
-	
-		if (parent != null && !parent.isWritable()) {
-			throw new ItemNotWritableException(parent);
-		}
 		setWritable(writable);
-		try {
-			parent.addAsItem(this);
-		} catch (ItemNotWritableException e) {
-			//cannot occur
-			assert false;
-		} catch (IllegalArgumentException e) {
-			//cannot occur
-			assert false;
-		}
-
 	}
 
 	/**********************************************************
@@ -89,7 +69,7 @@ public abstract class DiskItem extends Item {
 	 * Check whether this disk item can be terminated.
 	 * 
 	 * @return	True if the disk item is not yet terminated, is writable and its parent directory is writable
-	 * 			| if (isTerminated() || !isWritable() || (!getParentDirectory().isWritable()))
+	 * 			| if (isTerminated() || !isWritable() || (!isRoot() && !getParentDirectory().isWritable()))
 	 * 			| then result == false
 	 * @note	This specification must be left open s.t. the subclasses can change it
 	 */
@@ -195,9 +175,23 @@ public abstract class DiskItem extends Item {
 	 *        | new.isWritable() == isWritable
 	 */
 	@Raw 
-	public void setWritable(boolean isWritable) {
+	private void setWritable(boolean isWritable) {
 		this.isWritable = isWritable;
 	}
+	
+	/**
+	 * Set the writability of the file to false
+	 * 
+	 * @effect	The writability is set to false
+	 * 			| setWritable(false)
+	 * @note	We label setWritable to protected
+	 */
+	
+	public void setReadOnly() {
+		setWritable(false);
+	}
+	
+
 
 
 
@@ -251,6 +245,11 @@ public abstract class DiskItem extends Item {
 			throw new ItemNotWritableException(this);
 		super.move(target);
 	}
+	/**
+	 * Get the total disk usage for each DiskItem
+	 */
+	
+	abstract int getTotalDiskUsage();
 
 
 

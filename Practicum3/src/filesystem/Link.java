@@ -1,5 +1,6 @@
 package filesystem;
 
+import be.kuleuven.cs.som.annotate.Basic;
 import be.kuleuven.cs.som.annotate.Model;
 import be.kuleuven.cs.som.annotate.Raw;
 
@@ -23,7 +24,7 @@ public class Link extends Item{
 	 * @param	name (total programming, so no error if wrong, or null, or weird name, only set to default by setName())
 	 * 			| The name of the link
 	 * @param	item (defensive programming: must be a valid directory, which has not been terminated)
-	 * 			| The Item to which the link refers
+	 * 			| The Disk Item to which the link refers
 	 * 
 	 * @effect	The new link is a disk item with a given name and a true writabillity (a link is always writable)
 	 * 			| super(name, true)
@@ -39,9 +40,10 @@ public class Link extends Item{
 	 * 			| item.isTerminated()
 	 */
 	
-	public Link(String name, Item item)	throws IllegalArgumentException {
-		super(name);
+	public Link(Directory dir, String name, DiskItem item)	throws IllegalArgumentException {
+		super(dir, name);
 		if (item.isTerminated())	{
+			dir.removeAsItem(this);
 			throw new IllegalArgumentException("Item is terminated!");
 		}
 		setLink(item);
@@ -55,6 +57,7 @@ public class Link extends Item{
 	/**
 	 * Returns the Item to which the link refers
 	 */
+	@Basic @Raw
 	protected Item getLink()	{
 		return this.link;
 	}
@@ -75,29 +78,30 @@ public class Link extends Item{
 	// changeLink does not exist.
 	
 	
-	
 
-	
-	
-	
-	private boolean isValid = true;
 	
 	/**
 	 * Return whether the current link is valid
+	 * 
+	 * @return	True if and only if the item to which it refers has not been terminated
+	 * 			| !getLink().isTerminated()
 	 */
+	@Raw
 	public boolean isValid()	{
-		return isValid;
+		return !getLink().isTerminated();
 	}
 	
-	/**
-	 * Update the validity of the link
-	 * 
-	 * @post	if our item is terminated, the link is no longer valid, else it is valid (again)
-	 * 			| new.isValid == !(getLink().isTerminated())
-	 */
-	public void updateValidity()	{
-		isValid = !(getLink().isTerminated());
-	}
+    /**
+     * Get the total disk usage of this link
+     * 
+     * @return	The link does not take up space
+     * 			| result == 0
+     */
+    
+    public int getTotalDiskUsage() {
+    	return 0;
+    }
+
 	
 
 }
