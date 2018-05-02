@@ -87,10 +87,11 @@ public class Directory extends DiskItem {
 	 */
 	public Directory(Directory parent, String name) 
 			throws IllegalArgumentException, ItemNotWritableException {
-		this(parent,name,true);    
+		this(parent,name,true); 
 	}    
-
 	
+
+
 	
 	
 	/**********************************************************
@@ -138,6 +139,8 @@ public class Directory extends DiskItem {
 		}
 		super.terminate();
 	}
+	
+	
 	
 	
 	/**********************************************************

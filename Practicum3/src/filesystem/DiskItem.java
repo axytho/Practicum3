@@ -175,9 +175,10 @@ public abstract class DiskItem extends Item {
 	 *        | new.isWritable() == isWritable
 	 */
 	@Raw 
-	private void setWritable(boolean isWritable) {
+	protected void setWritable(boolean isWritable) {
 		this.isWritable = isWritable;
 	}
+
 	
 	/**
 	 * Set the writability of the file to false
@@ -250,6 +251,7 @@ public abstract class DiskItem extends Item {
 	 */
 	
 	abstract int getTotalDiskUsage();
+
 
 
 

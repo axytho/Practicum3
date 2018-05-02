@@ -297,4 +297,15 @@ public class File extends DiskItem{
 		return  getParentDirectory().getAbsolutePath().concat("/".concat(this.getName())).concat(".").concat(getType().getExtension());
 	}
     
+	/**
+	 * Set the writability of this disk item to the given writability.
+	 *
+	 * @param   isWritable
+	 *          The new writability
+	 * @effect	The writability of the directory is set to isWritable
+	 * 			| setWritable(isWritable)
+	 */
+	public void changeWritability(boolean isWritable) {
+		setWritable(isWritable);
+	}
 }
